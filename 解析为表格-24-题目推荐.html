@@ -1,0 +1,2970 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <title>数据解析为表格</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+<style>
+    body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    max-width: 1500px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+h1 {
+    text-align: center;
+    color: #444;
+}
+
+.drop-zone {
+    border: 2px dashed #ccc;
+    border-radius: 10px;
+    padding: 40px;
+    text-align: center;
+    margin: 20px 0;
+    background-color: #f9f9f9;
+    transition: all 0.3s ease;
+}
+
+.drop-zone.dragover {
+    border-color: #4A90E2;
+    background-color: #e3f2fd;
+}
+
+.drop-zone p {
+    margin: 0;
+    font-size: 18px;
+    color: #666;
+}
+
+.drop-zone .file-info {
+    margin-top: 10px;
+    font-size: 14px;
+    color: #888;
+}
+
+.file-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 20px 0;
+    justify-content: center;
+}
+
+.file-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 15px;
+    background-color: #4A90E2;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.file-tag:hover {
+    background-color: #357ABD;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.file-tag.active {
+    background-color: #28a745;
+}
+
+.file-tag.inactive {
+    background-color: #6c757d;
+    opacity: 0.6;
+}
+
+.file-tag .remove-btn {
+    margin-left: 8px;
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 0;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.file-tag .remove-btn:hover {
+    background-color: rgba(255,255,255,0.2);
+}
+
+.file-tag .file-count {
+    margin-left: 8px;
+    background-color: rgba(255,255,255,0.2);
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 12px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1);
+}
+
+th,
+td {
+    border: 1px solid #ddd;
+    padding: 12px 15px;
+    text-align: left;
+}
+
+th {
+    background-color: #f4f4f4;
+    font-weight: bold;
+    text-align: center;
+}
+
+.row-odd {
+    background-color: #f5fcf5;
+}
+
+.row-even {
+    background-color: #fff5f6;
+}
+
+tr:hover {
+    background-color: #d5e9ff;
+}
+
+.col-index {
+    width: 8%;
+    text-align: center;
+}
+
+.index-checkbox {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.index-checkbox input[type="checkbox"] {
+    margin: 0;
+    cursor: pointer;
+}
+
+.row-selected {
+    background-color: #f4e4d4 !important;
+}
+
+.row-selected:hover {
+    background-color: #e8d4c0 !important;
+}
+
+.context-menu {
+    position: fixed;
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    padding: 5px 0;
+    z-index: 1000;
+    display: none;
+}
+
+.context-menu-item {
+    padding: 8px 15px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #333;
+}
+
+.context-menu-item:hover {
+    background-color: #f5f5f5;
+}
+
+.copy-success {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: #28a745;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 5px;
+    font-size: 14px;
+    z-index: 1001;
+    display: none;
+}
+
+.row-copied {
+    color: #0066cc !important;
+    font-weight: bold !important;
+    transition: all 0.3s ease;
+}
+
+.batch-copy-btn {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1002;
+    background-color: #4A90E2;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 15px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.batch-copy-btn:hover {
+    background-color: #357ABD;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.batch-copy-btn:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* 主题切换按钮样式 */
+.theme-toggle-btn {
+    position: fixed;
+    top: 70px;
+    right: 20px;
+    z-index: 1002;
+    background-color: #4A90E2;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 15px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.theme-toggle-btn:hover {
+    background-color: #357ABD;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+/* 深色模式样式 */
+body.dark-mode {
+    background-color: #1a1a1a;
+    color: #e0e0e0;
+}
+
+body.dark-mode h1 {
+    color: #ffffff;
+}
+
+body.dark-mode .drop-zone {
+    background-color: #2d2d2d;
+    border-color: #555;
+}
+
+body.dark-mode .drop-zone p {
+    color: #b0b0b0;
+}
+
+body.dark-mode .drop-zone .file-info {
+    color: #888;
+}
+
+body.dark-mode .file-tag {
+    background-color: #4A90E2;
+}
+
+body.dark-mode .file-tag.inactive {
+    background-color: #555;
+}
+
+body.dark-mode table {
+    box-shadow: 0 2px 3px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-mode th,
+body.dark-mode td {
+    border-color: #555;
+}
+
+body.dark-mode th {
+    background-color: #333;
+    color: #ffffff;
+}
+
+body.dark-mode .row-odd {
+    background-color: #2a2a2a;
+}
+
+body.dark-mode .row-even {
+    background-color: #333;
+}
+
+body.dark-mode tr:hover {
+    background-color: #404040;
+}
+
+body.dark-mode .row-selected {
+    background-color: #4a3a2a !important;
+}
+
+body.dark-mode .row-selected:hover {
+    background-color: #5a4a3a !important;
+}
+
+body.dark-mode .context-menu {
+    background: #2d2d2d;
+    border-color: #555;
+}
+
+body.dark-mode .context-menu-item {
+    color: #e0e0e0;
+}
+
+body.dark-mode .context-menu-item:hover {
+    background-color: #404040;
+}
+
+body.dark-mode .search-buttons button {
+    background-color: #333;
+    color: #e0e0e0;
+    border-color: #555;
+}
+
+body.dark-mode .search-buttons button:hover {
+    background-color: #404040;
+}
+
+body.dark-mode .search-buttons button.selected {
+    background-color: #614caf;
+    color: white;
+}
+
+body.dark-mode .search-container {
+    background: #1a1a1a;
+}
+
+body.dark-mode #searchInput {
+    background-color: #333;
+    color: #e0e0e0;
+    border: 1px solid #555;
+}
+
+body.dark-mode #searchInput::placeholder {
+    color: #888;
+}
+
+body.dark-mode #clearBtn {
+    color: #b0b0b0;
+}
+
+body.dark-mode #clearBtn:hover {
+    color: #e0e0e0;
+}
+
+body.dark-mode .no-data {
+    color: #888;
+}
+
+body.dark-mode #chartContainer {
+    background-color: #2d2d2d;
+    border-color: #555;
+}
+
+body.dark-mode #closeChart {
+    background-color: #333;
+    color: #e0e0e0;
+}
+
+body.dark-mode #closeChart:hover {
+    background-color: #404040;
+}
+
+body.dark-mode .chart-type-btn {
+    background-color: #333;
+    color: #e0e0e0;
+    border-color: #555;
+}
+
+body.dark-mode .chart-type-btn:hover {
+    background-color: #404040;
+}
+
+body.dark-mode .chart-type-btn.active {
+    background-color: #4CAF50;
+    color: white;
+    border-color: #4CAF50;
+}
+
+/* 相似题目推荐按钮样式 */
+#showRecommendButton {
+    position: fixed;
+    bottom: 65px;
+    left: 20px;
+    z-index: 1000;
+    padding: 10px 20px;
+    background-color: #9C27B0;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: bold;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+}
+
+#showRecommendButton:hover {
+    background-color: #7B1FA2;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+
+/* 推荐面板容器样式 */
+#recommendContainer {
+    width: 90%;
+    height: 80%;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: #ffffff;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+    display: none;
+    z-index: 1000;
+    overflow: hidden;
+}
+
+#recommendContent {
+    height: 100%;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+#closeRecommend {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    cursor: pointer;
+    font-size: 24px;
+    background-color: #f2f2f2;
+    border: none;
+    border-radius: 50%;
+    width: 35px;
+    height: 35px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1001;
+}
+
+#closeRecommend:hover {
+    background-color: #e0e0e0;
+}
+
+.recommend-section {
+    margin-bottom: 30px;
+    padding: 20px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid #9C27B0;
+    position: relative;
+}
+
+.recommend-section h3 {
+    margin: 0 0 15px 0;
+    color: #333;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.recommend-item {
+    background: white;
+    padding: 15px;
+    padding-left: 45px;
+    margin-bottom: 10px;
+    border-radius: 6px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.recommend-item.item-copied {
+    background-color: #f3e5f5;
+    transition: background-color 0.3s ease;
+}
+
+.recommend-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.recommend-item .title {
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 8px;
+}
+
+.recommend-item .points {
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 5px;
+}
+
+.recommend-item .filename {
+    color: #999;
+    font-size: 12px;
+}
+
+.recommend-item .item-number {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background-color: #9C27B0;
+    color: white;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.recommend-item .similarity {
+    float: right;
+    background-color: #9C27B0;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.no-recommendations {
+    text-align: center;
+    padding: 40px;
+    color: #888;
+    font-style: italic;
+}
+
+/* 相似依据考点样式 */
+.similarity-point {
+    font-weight: bold;
+    color: #e91e63 !important;
+    text-shadow: 0 0 2px rgba(233, 30, 99, 0.3);
+}
+
+body.dark-mode .similarity-point {
+    color: #ff6b9d !important;
+    text-shadow: 0 0 3px rgba(255, 107, 157, 0.5);
+}
+
+/* 深色模式下的推荐面板样式 */
+body.dark-mode #recommendContainer {
+    background-color: #2d2d2d;
+    border-color: #555;
+}
+
+body.dark-mode .recommend-section {
+    background-color: #333;
+    border-left-color: #9C27B0;
+}
+
+/* 推荐区块内批量复制按钮 */
+.section-batch-copy {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background-color: #9C27B0;
+    color: #fff;
+    border: none;
+    border-radius: 16px;
+    padding: 6px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.section-batch-copy:hover {
+    background-color: #7B1FA2;
+}
+
+body.dark-mode .section-batch-copy {
+    background-color: #7B1FA2;
+}
+
+body.dark-mode .recommend-section h3 {
+    color: #e0e0e0;
+}
+
+body.dark-mode .recommend-item {
+    background-color: #404040;
+    color: #e0e0e0;
+}
+
+body.dark-mode .recommend-item.item-copied {
+    background-color: #4a2a4a;
+}
+
+body.dark-mode .recommend-item .title {
+    color: #ffffff;
+}
+
+body.dark-mode .recommend-item .points {
+    color: #b0b0b0;
+}
+
+body.dark-mode .recommend-item .filename {
+    color: #888;
+}
+
+body.dark-mode #closeRecommend {
+    background-color: #333;
+    color: #e0e0e0;
+}
+
+body.dark-mode #closeRecommend:hover {
+    background-color: #404040;
+}
+
+body.dark-mode .no-recommendations {
+    color: #888;
+}
+
+body.dark-mode #recommendContainer .similarity-point {
+    color: #ff6b9d !important;
+}
+
+/* 统计面板按钮样式 */
+#showStatsButton {
+    position: fixed;
+    top: 70px;
+    left: 20px;
+    z-index: 1000;
+    padding: 8px 15px;
+    background-color: #FF6B35;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+}
+
+#showStatsButton:hover {
+    background-color: #E55A2B;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+
+/* 统计面板容器样式 */
+#statsContainer {
+    width: 90%;
+    height: 80%;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: #ffffff;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+    display: none;
+    z-index: 1000;
+    overflow: hidden;
+}
+
+#statsContent {
+    height: 100%;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+#closeStats {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    cursor: pointer;
+    font-size: 24px;
+    background-color: #f2f2f2;
+    border: none;
+    border-radius: 50%;
+    width: 35px;
+    height: 35px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1001;
+}
+
+#closeStats:hover {
+    background-color: #e0e0e0;
+}
+
+.stats-section {
+    margin-bottom: 30px;
+    padding: 20px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid #4A90E2;
+}
+
+.stats-section h3 {
+    margin: 0 0 15px 0;
+    color: #333;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.stats-card {
+    background: white;
+    padding: 15px;
+    border-radius: 6px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    text-align: center;
+}
+
+.stats-card .number {
+    font-size: 24px;
+    font-weight: bold;
+    color: #4A90E2;
+    margin-bottom: 5px;
+}
+
+.stats-card .label {
+    font-size: 14px;
+    color: #666;
+}
+
+.stats-list {
+    max-height: 200px;
+    overflow-y: auto;
+    background: white;
+    border-radius: 6px;
+    padding: 10px;
+}
+
+.stats-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.stats-item:last-child {
+    border-bottom: none;
+}
+
+.stats-item .name {
+    font-weight: 500;
+}
+
+.stats-item .count {
+    background-color: #4A90E2;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.stats-chart {
+    height: 300px;
+    margin-top: 15px;
+}
+
+/* 深色模式下的统计面板样式 */
+body.dark-mode #statsContainer {
+    background-color: #2d2d2d;
+    border-color: #555;
+}
+
+body.dark-mode .stats-section {
+    background-color: #333;
+    border-left-color: #4A90E2;
+}
+
+body.dark-mode .stats-section h3 {
+    color: #e0e0e0;
+}
+
+body.dark-mode .stats-card {
+    background-color: #404040;
+    color: #e0e0e0;
+}
+
+body.dark-mode .stats-card .label {
+    color: #b0b0b0;
+}
+
+body.dark-mode .stats-list {
+    background-color: #404040;
+    color: #e0e0e0;
+}
+
+body.dark-mode .stats-item {
+    border-bottom-color: #555;
+}
+
+body.dark-mode #closeStats {
+    background-color: #333;
+    color: #e0e0e0;
+}
+
+body.dark-mode #closeStats:hover {
+    background-color: #404040;
+}
+
+/* 图表按钮样式 */
+#showChartButton {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    z-index: 1000;
+    padding: 10px 20px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: bold;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+}
+
+#showChartButton:hover {
+    background-color: #3e8e41;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+
+#showChartButton:hover {
+    background-color: #3e8e41;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+
+/* 图表容器样式 */
+#chartContainer {
+    width: 90%;
+    height: 80%;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: #ffffff;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+    display: none;
+    z-index: 1000;
+    overflow: hidden;
+}
+
+#chart {
+    position: relative;
+    height: 600px;
+    margin-top: 20px;
+    padding: 20px;
+    overflow: auto;
+}
+
+/* 图表类型选择器样式 */
+.chart-type-selector {
+    position: absolute;
+    top: 50px;
+    left: 20px;
+    display: flex;
+    gap: 10px;
+    z-index: 1001;
+}
+
+.chart-type-btn {
+    padding: 8px 12px;
+    background-color: #f0f0f0;
+    color: #333;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.3s ease;
+}
+
+.chart-type-btn:hover {
+    background-color: #e0e0e0;
+}
+
+.chart-type-btn.active {
+    background-color: #4CAF50;
+    color: white;
+    border-color: #4CAF50;
+}
+
+#closeChart {
+    position: absolute;
+    top: 5px;
+    right: 10px;
+    cursor: pointer;
+    font-size: 18px;
+    background-color: #f2f2f2;
+    border: none;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* 滑动条容器样式 */
+.slider-container {
+    position: absolute;
+    top: 50px;
+    right: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    z-index: 1001;
+}
+
+.slider-container input {
+    margin: 5px 0;
+}
+
+.slider-label {
+    font-size: 14px;
+    margin-right: 5px;
+}
+
+/* 覆盖层样式 */
+#overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    z-index: 999;
+    display: none;
+}
+
+/* 搜索模式按钮样式 */
+.search-buttons {
+    display: flex;
+    justify-content: center;
+    margin-top: 10px;
+}
+
+.search-buttons button {
+    margin: 0 5px;
+    padding: 8px 16px;
+    background-color: #f0f0f0;
+    color: #333;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.search-buttons button:hover {
+    background-color: #e0e0e0;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.search-buttons button.selected {
+    background-color: #614caf;
+    color: white;
+    border-color: #704382;
+}
+
+.col-title {
+    width: 15%;
+}
+
+.col-points {
+    width: 65%;
+}
+
+.col-filename {
+    width: 15%;
+    text-align: center;
+}
+
+.search-container {
+    position: sticky;
+    top: 10px;
+    z-index: 1;
+    background: #fff;
+    padding-bottom: 20px;
+}
+
+.search-box {
+    position: relative;
+    width: 60%;
+    margin-left: 20%;
+}
+
+#searchInput {
+    width: 100%;
+    padding: 10px;
+    padding-right: 30px;
+    box-sizing: border-box;
+    font-size: 16px;
+}
+
+#clearBtn {
+    display: none;
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    font-size: 22px;
+    color: #888;
+}
+#clearBtn:hover {
+    color: #333;
+}
+
+#rowCountContainer {
+    position: fixed;
+    top: 2%;
+    left: 20px;
+    padding: 8px 15px;
+    background-color: #28a745;
+    color: white;
+    border-radius: 5px;
+    font-size: 14px;
+    font-weight: bold;
+    z-index: 1002;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+#scrollToTopBtn {
+    display: none;
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 50px;
+    height: 50px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    z-index: 1001;
+    transition: all 0.3s ease;
+}
+
+#scrollToTopBtn:hover {
+    background-color: #0056b3;
+    transform: translateY(-5px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+}
+
+.no-data {
+    text-align: center;
+    padding: 40px;
+    color: #888;
+    font-style: italic;
+}
+</style>
+</head>
+
+<body>
+    <div id="rowCountContainer"></div>
+    <button id="scrollToTopBtn" title="回到顶部">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 15 12 9 18 15"></polyline>
+        </svg>
+    </button>
+    <button id="batchCopyBtn" class="batch-copy-btn" disabled>批量复制</button>
+    <button id="themeToggleBtn" class="theme-toggle-btn">🌙 深色模式</button>
+    
+    <!-- 图表按钮 -->
+    <button id="showChartButton">📊 数据图表</button>
+    
+    <!-- 相似题目推荐按钮 -->
+    <button id="showRecommendButton">🎯 相似题目</button>
+    
+    <!-- 统计面板按钮 -->
+    <button id="showStatsButton">📊 统计面板</button>
+    
+    <!-- 图表容器 -->
+    <div id="overlay"></div>
+    <div id="chartContainer">
+        <button id="closeChart">×</button>
+        <div class="chart-type-selector">
+            <button class="chart-type-btn active" data-type="bar">条形图</button>
+            <button class="chart-type-btn" data-type="pie">饼图</button>
+            <button class="chart-type-btn" data-type="doughnut">环形图</button>
+            <button class="chart-type-btn" data-type="line">折线图</button>
+            <button class="chart-type-btn" data-type="radar">雷达图</button>
+        </div>
+        <canvas id="chart"></canvas>
+        <div class="slider-container">
+            <div>
+                <span class="slider-label">最小值:</span>
+                <span id="minRangeValue">0</span>
+                <input type="range" id="minRange" min="0" max="100" value="0">
+            </div>
+            <div>
+                <span class="slider-label">最大值:</span>
+                <span id="maxRangeValue">100</span>
+                <input type="range" id="maxRange" min="0" max="100" value="100">
+            </div>
+        </div>
+    </div>
+    
+    <!-- 统计面板容器 -->
+    <div id="statsContainer">
+        <button id="closeStats">×</button>
+        <div id="statsContent">
+            <!-- 统计内容将通过JavaScript动态生成 -->
+        </div>
+    </div>
+    
+    <!-- 相似题目推荐面板容器 -->
+    <div id="recommendContainer">
+        <button id="closeRecommend">×</button>
+        <div id="recommendContent">
+            <!-- 推荐内容将通过JavaScript动态生成 -->
+        </div>
+    </div>
+    
+    <!-- 复制成功提示 -->
+    <div id="copySuccess" class="copy-success">复制成功！</div>
+
+    <h1>题目数据</h1>
+    
+    <div class="drop-zone" id="dropZone">
+        <p>将多个 Markdown 文件拖拽到此处</p>
+        <div class="file-info" id="fileInfo"></div>
+    </div>
+
+    <div class="file-tags" id="fileTags"></div>
+
+    <div class="search-container">
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="输入搜索内容，逗号隔开">
+            <span id="clearBtn">&times;</span>
+        </div>
+    </div>
+
+    <!-- 搜索模式按钮 -->
+    <div class="search-buttons">
+        <button id="partialOrMatchButton" onclick="toggleSearchMode('partialOr')">部分匹配（或）</button>
+        <button id="partialAndMatchButton" onclick="toggleSearchMode('partialAnd')">部分匹配（且）</button>
+        <button id="exactMatchButton" onclick="toggleSearchMode('exact')">精确匹配（且）</button>
+    </div>
+    
+    <table id="dataTable">
+        <thead>
+            <tr>
+                <th class="col-index">
+                    <div class="index-checkbox">
+                        <input type="checkbox" id="selectAllCheckbox">
+                        <span>序号</span>
+                    </div>
+                </th>
+                <th class="col-title">题目名</th>
+                <th class="col-points">考点列表</th>
+                <th class="col-filename">文件名</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td colspan="4" class="no-data">请拖拽 Markdown 文件到上方区域</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <script>
+        let data = {};
+let fileData = {}; // 存储每个文件的数据
+let activeFiles = new Set(); // 存储当前激活的文件
+let fileOrder = []; // 存储文件的原始顺序
+let selectedRows = new Set(); // 存储选中的行
+let pointCounts = {}; // 存储考点计数
+let difficultyCounts = {}; // 存储难度计数
+let typeCounts = {}; // 存储题型计数
+let subjectCounts = {}; // 存储科目计数
+let chartInstance = null; // 用于存储图表实例
+let currentChartType = 'bar'; // 当前图表类型
+let searchMode = 'partialOr'; // 默认是"或"模式
+let isDarkMode = false; // 深色模式状态
+const tableBody = document.querySelector('#dataTable tbody');
+const dropZone = document.getElementById('dropZone');
+const fileInfo = document.getElementById('fileInfo');
+const fileTags = document.getElementById('fileTags');
+const searchInput = document.getElementById('searchInput');
+const clearBtn = document.getElementById('clearBtn');
+const rowCountContainer = document.getElementById('rowCountContainer');
+const copySuccess = document.getElementById('copySuccess');
+const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+const batchCopyBtn = document.getElementById('batchCopyBtn');
+const showChartButton = document.getElementById('showChartButton');
+const closeChart = document.getElementById('closeChart');
+const chartContainer = document.getElementById('chartContainer');
+const overlay = document.getElementById('overlay');
+const themeToggleBtn = document.getElementById('themeToggleBtn');
+const showStatsButton = document.getElementById('showStatsButton');
+const closeStats = document.getElementById('closeStats');
+const statsContainer = document.getElementById('statsContainer');
+const statsContent = document.getElementById('statsContent');
+const showRecommendButton = document.getElementById('showRecommendButton');
+const closeRecommend = document.getElementById('closeRecommend');
+const recommendContainer = document.getElementById('recommendContainer');
+const recommendContent = document.getElementById('recommendContent');
+let buttons = {}; // 用于存储按钮元素
+
+// 解析 Markdown 文件内容
+function parseMarkdown(content, filename) {
+    const lines = content.split('\n');
+    const parsedData = {};
+    let currentTitle = '';
+    
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        
+        // 匹配四级标题 (####)
+        if (line.startsWith('#### ')) {
+            currentTitle = line.substring(5).trim();
+            parsedData[currentTitle] = {
+                points: [],
+                filename: filename
+            };
+        }
+        
+        // 匹配五级标题中的考点信息
+        if (line.startsWith('##### （考点：）【') && currentTitle) {
+            console.log('找到考点行:', line); // 调试信息
+            
+            // 使用更简单的字符串匹配方法
+            const startIndex = line.indexOf('【');
+            const endIndex = line.indexOf('】');
+            
+            if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
+                const content = line.substring(startIndex + 1, endIndex);
+                console.log('提取的内容:', content); // 调试信息
+                const points = content.split('，').map(point => point.trim());
+                parsedData[currentTitle].points = points;
+                console.log('解析的考点:', points); // 调试信息
+            } else {
+                console.log('字符串匹配失败'); // 调试信息
+            }
+        }
+    }
+    
+    console.log('解析结果:', parsedData); // 添加调试信息
+    return parsedData;
+}
+
+// 创建文件标签
+function createFileTag(filename, count) {
+    const tag = document.createElement('div');
+    tag.className = 'file-tag active';
+    tag.dataset.filename = filename;
+    
+    const filenameSpan = document.createElement('span');
+    filenameSpan.textContent = filename;
+    
+    const countSpan = document.createElement('span');
+    countSpan.className = 'file-count';
+    countSpan.textContent = count;
+    
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'remove-btn';
+    removeBtn.innerHTML = '×';
+    removeBtn.title = '移除文件';
+    
+    tag.appendChild(filenameSpan);
+    tag.appendChild(countSpan);
+    tag.appendChild(removeBtn);
+    
+    // 点击标签切换激活状态
+    tag.addEventListener('click', function(e) {
+        if (e.target !== removeBtn) {
+            toggleFileActive(filename);
+        }
+    });
+    
+    // 点击移除按钮
+    removeBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        removeFile(filename);
+    });
+    
+    return tag;
+}
+
+// 切换文件激活状态
+function toggleFileActive(filename) {
+    const tag = document.querySelector(`[data-filename="${filename}"]`);
+    if (activeFiles.has(filename)) {
+        activeFiles.delete(filename);
+        tag.classList.remove('active');
+        tag.classList.add('inactive');
+    } else {
+        activeFiles.add(filename);
+        tag.classList.remove('inactive');
+        tag.classList.add('active');
+    }
+    updateTable();
+    updateFileInfo(); // 更新文件信息
+}
+
+// 移除文件
+function removeFile(filename) {
+    delete fileData[filename];
+    activeFiles.delete(filename);
+    // 从文件顺序中移除
+    const index = fileOrder.indexOf(filename);
+    if (index > -1) {
+        fileOrder.splice(index, 1);
+    }
+    updateFileTags();
+    updateTable();
+    updateFileInfo(); // 确保文件信息更新
+}
+
+// 更新文件标签
+function updateFileTags() {
+    fileTags.innerHTML = '';
+    // 按照原始文件顺序显示标签
+    for (const filename of fileOrder) {
+        if (fileData[filename]) {
+            const count = Object.keys(fileData[filename]).length;
+            const tag = createFileTag(filename, count);
+            if (!activeFiles.has(filename)) {
+                tag.classList.remove('active');
+                tag.classList.add('inactive');
+            }
+            fileTags.appendChild(tag);
+        }
+    }
+}
+
+// 更新文件信息
+function updateFileInfo() {
+    const totalFiles = Object.keys(fileData).length;
+    const activeFileCount = activeFiles.size;
+    
+    // 计算激活文件的总题目数
+    let totalQuestions = 0;
+    for (const filename of activeFiles) {
+        if (fileData[filename]) {
+            totalQuestions += Object.keys(fileData[filename]).length;
+        }
+    }
+    
+    if (totalFiles === 0) {
+        fileInfo.textContent = '请拖拽 Markdown 文件到上方区域';
+    } else {
+        fileInfo.textContent = `已加载 ${totalFiles} 个文件，${activeFileCount} 个激活，共 ${totalQuestions} 道题目`;
+    }
+}
+
+// 合并所有激活文件的数据
+function mergeActiveData() {
+    data = {};
+    // 按照原始文件顺序合并数据
+    for (const filename of fileOrder) {
+        if (activeFiles.has(filename) && fileData[filename]) {
+            Object.assign(data, fileData[filename]);
+        }
+    }
+}
+
+// 更新表格
+function updateTable() {
+    mergeActiveData();
+    tableBody.innerHTML = '';
+    selectedRows.clear(); // 清空选中状态
+    pointCounts = {}; // 重置考点计数
+    difficultyCounts = {}; // 重置难度计数
+    typeCounts = {}; // 重置题型计数
+    subjectCounts = {}; // 重置科目计数
+    
+    if (Object.keys(data).length === 0) {
+        const noDataRow = document.createElement('tr');
+        noDataRow.innerHTML = '<td colspan="4" class="no-data">请拖拽 Markdown 文件到上方区域或激活文件</td>';
+        tableBody.appendChild(noDataRow);
+        return;
+    }
+    
+    let index = 1;
+    for (const title in data) {
+        if (Object.prototype.hasOwnProperty.call(data, title)) {
+            const keyPoints = data[title];
+            const row = document.createElement('tr');
+            row.dataset.title = title; // 为行添加数据标识
+
+            const cellIndex = document.createElement('td');
+            cellIndex.className = 'col-index';
+            
+            // 创建复选框和数字的组合
+            const indexContent = document.createElement('div');
+            indexContent.className = 'index-checkbox';
+            
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.dataset.index = index;
+            
+            const numberSpan = document.createElement('span');
+            numberSpan.textContent = index;
+            
+            indexContent.appendChild(checkbox);
+            indexContent.appendChild(numberSpan);
+            
+            index++; // 移到后面
+            cellIndex.appendChild(indexContent);
+            row.appendChild(cellIndex);
+
+            const cellTitle = document.createElement('td');
+            cellTitle.textContent = title;
+            row.appendChild(cellTitle);
+
+            const cellKeyPoints = document.createElement('td');
+            cellKeyPoints.textContent = keyPoints.points.join('，');
+            row.appendChild(cellKeyPoints);
+
+            const cellFilename = document.createElement('td');
+            cellFilename.textContent = keyPoints.filename;
+            row.appendChild(cellFilename);
+
+            // 添加行点击事件
+            row.addEventListener('click', function(e) {
+                if (e.target.type !== 'checkbox') {
+                    toggleRowSelection(this);
+                }
+            });
+
+            // 添加复选框点击事件
+            checkbox.addEventListener('click', function(e) {
+                e.stopPropagation();
+                toggleRowSelection(row);
+            });
+
+            // 添加右键复制事件
+            row.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                copyRowContent(row);
+            });
+
+            tableBody.appendChild(row);
+            
+            // 统计考点
+            countPoints(keyPoints.points);
+        }
+    }
+    
+    updateRowCount();
+    reapplyRowColors();
+}
+
+// 统计考点函数
+function countPoints(points) {
+    const difficultyKeywords = ['难度超低', '难度低', '难度中低', '难度中等', '难度中高', '难度高', '难度超高'];
+    const typeKeywords = ['选择', '填空', '解答'];
+    const subjectKeywords = ['高数', '线代', '概论'];
+    
+    points.forEach(point => {
+        if (difficultyKeywords.includes(point)) {
+            // 统计难度
+            if (difficultyCounts[point]) {
+                difficultyCounts[point]++;
+            } else {
+                difficultyCounts[point] = 1;
+            }
+        } else if (typeKeywords.includes(point)) {
+            // 统计题型
+            if (typeCounts[point]) {
+                typeCounts[point]++;
+            } else {
+                typeCounts[point] = 1;
+            }
+        } else if (subjectKeywords.includes(point)) {
+            // 统计科目
+            if (subjectCounts[point]) {
+                subjectCounts[point]++;
+            } else {
+                subjectCounts[point] = 1;
+            }
+        } else {
+            // 统计其他考点
+            if (pointCounts[point]) {
+                pointCounts[point]++;
+            } else {
+                pointCounts[point] = 1;
+            }
+        }
+    });
+}
+
+function updateRowCount() {
+    const totalRows = tableBody.rows.length;
+    const visibleRows = Array.from(tableBody.querySelectorAll('tr')).filter(row => row.style.display !== 'none').length;
+    rowCountContainer.textContent = `显示: ${visibleRows} / ${totalRows}`;
+}
+
+// 切换行选择状态
+function toggleRowSelection(row) {
+    const title = row.dataset.title;
+    if (selectedRows.has(title)) {
+        selectedRows.delete(title);
+        row.classList.remove('row-selected');
+        const checkbox = row.querySelector('input[type="checkbox"]');
+        if (checkbox) checkbox.checked = false;
+    } else {
+        selectedRows.add(title);
+        row.classList.add('row-selected');
+        const checkbox = row.querySelector('input[type="checkbox"]');
+        if (checkbox) checkbox.checked = true;
+    }
+    updateSelectAllCheckbox();
+}
+
+// 更新全选复选框状态
+function updateSelectAllCheckbox() {
+    const visibleRows = Array.from(tableBody.querySelectorAll('tr')).filter(row => 
+        row.style.display !== 'none' && row.dataset.title
+    );
+    const selectedVisibleRows = visibleRows.filter(row => 
+        selectedRows.has(row.dataset.title)
+    );
+    
+    if (visibleRows.length === 0) {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+    } else if (selectedVisibleRows.length === 0) {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+    } else if (selectedVisibleRows.length === visibleRows.length) {
+        selectAllCheckbox.checked = true;
+        selectAllCheckbox.indeterminate = false;
+    } else {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = true;
+    }
+    
+    // 更新批量复制按钮状态
+    updateBatchCopyButton();
+}
+
+// 更新批量复制按钮状态
+function updateBatchCopyButton() {
+    if (selectedRows.size > 0) {
+        batchCopyBtn.disabled = false;
+        batchCopyBtn.textContent = `批量复制 (${selectedRows.size})`;
+    } else {
+        batchCopyBtn.disabled = true;
+        batchCopyBtn.textContent = '批量复制';
+    }
+}
+
+// 全选/取消全选
+function toggleSelectAll() {
+    const visibleRows = Array.from(tableBody.querySelectorAll('tr')).filter(row => 
+        row.style.display !== 'none' && row.dataset.title
+    );
+    
+    if (selectAllCheckbox.checked) {
+        // 全选
+        visibleRows.forEach(row => {
+            const title = row.dataset.title;
+            if (!selectedRows.has(title)) {
+                selectedRows.add(title);
+                row.classList.add('row-selected');
+                const checkbox = row.querySelector('input[type="checkbox"]');
+                if (checkbox) checkbox.checked = true;
+            }
+        });
+    } else {
+        // 取消全选
+        visibleRows.forEach(row => {
+            const title = row.dataset.title;
+            selectedRows.delete(title);
+            row.classList.remove('row-selected');
+            const checkbox = row.querySelector('input[type="checkbox"]');
+            if (checkbox) checkbox.checked = false;
+        });
+    }
+    
+    // 手动更新批量复制按钮状态
+    updateBatchCopyButton();
+}
+
+function reapplyRowColors() {
+    const allRows = tableBody.querySelectorAll('tr');
+    allRows.forEach(row => {
+        row.classList.remove('row-odd', 'row-even');
+    });
+
+    const visibleRows = Array.from(allRows).filter(row => row.style.display !== 'none');
+    visibleRows.forEach((row, index) => {
+        // 如果行被选中，不应用奇偶行颜色
+        if (!selectedRows.has(row.dataset.title)) {
+            if (index % 2 === 0) {
+                row.classList.add('row-odd');
+            } else {
+                row.classList.add('row-even');
+            }
+        }
+    });
+    updateSelectAllCheckbox();
+}
+
+function escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// 文件拖拽处理
+dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('dragover');
+});
+
+dropZone.addEventListener('dragleave', () => {
+    dropZone.classList.remove('dragover');
+});
+
+dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        let processedFiles = 0;
+        
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            if (file.type === 'text/markdown' || file.name.endsWith('.md')) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const content = e.target.result;
+                    console.log('文件内容前100字符:', content.substring(0, 100));
+                    console.log('文件总长度:', content.length);
+                    const filename = file.name.replace(/\.md$/i, ''); // 去掉.md后缀
+                    
+                    // 存储每个文件的数据
+                    fileData[filename] = parseMarkdown(content, filename);
+                    activeFiles.add(filename); // 默认激活新添加的文件
+                    // 记录文件顺序
+                    if (!fileOrder.includes(filename)) {
+                        fileOrder.push(filename);
+                    }
+                    
+                    processedFiles++;
+                    
+                    // 当所有文件都处理完成后更新界面
+                    if (processedFiles === files.length) {
+                        updateFileTags();
+                        updateTable();
+                        updateFileInfo(); // 确保文件信息更新
+                    }
+                };
+                reader.readAsText(file);
+            } else {
+                processedFiles++;
+                if (processedFiles === files.length) {
+                    updateFileTags();
+                    updateTable();
+                    updateFileInfo(); // 确保文件信息更新
+                }
+            }
+        }
+    }
+});
+
+// 搜索功能
+searchInput.addEventListener('input', function () {
+    const queryValue = this.value.trim();
+    clearBtn.style.display = queryValue ? 'block' : 'none';
+
+    const queries = queryValue.split(/[,，]/).map(q => q.trim()).filter(q => q);
+    
+    if (queries.length === 0) {
+        // 显示所有行，恢复原始序号
+        const rows = tableBody.querySelectorAll('tr');
+        rows.forEach((row, index) => {
+            row.style.display = '';
+            const title = row.dataset.title;
+            if (data[title]) {
+                const keyPointsCell = row.cells[2];
+                keyPointsCell.innerHTML = data[title].points.join('，');
+                // 恢复原始序号
+                const numberSpan = row.querySelector('.index-checkbox span');
+                if (numberSpan) {
+                    numberSpan.textContent = index + 1;
+                }
+            }
+        });
+        updateRowCount();
+        reapplyRowColors();
+        return;
+    }
+
+    // 收集匹配的行数据用于排序
+    const matchedRows = [];
+    const rows = tableBody.querySelectorAll('tr');
+
+    rows.forEach(row => {
+        const title = row.dataset.title;
+        if (!data[title]) return;
+        
+        const keyPointsString = data[title].points.join('，');
+        const keyPointsStringLower = keyPointsString.toLowerCase();
+        const titleLower = title.toLowerCase();
+        const fileNameLower = row.cells[3].textContent.toLowerCase();
+
+        let isMatch = false;
+        let exactMatchCount = 0;
+        let partialMatchCount = 0;
+        let titleExactMatch = false;
+        let fileNameExactMatch = false;
+        let titleMatch = false;
+        let fileNameMatch = false;
+        
+        if (searchMode === 'exact') {
+            // 精确匹配（且）：所有关键词都必须完全匹配考点
+            isMatch = queries.every(query => 
+                data[title].points.some(point => point === query)
+            );
+            if (isMatch) {
+                exactMatchCount = queries.filter(query => 
+                    data[title].points.includes(query)
+                ).length;
+            }
+        } else if (searchMode === 'partialAnd') {
+            // 部分匹配（且）：所有关键词都必须包含在考点中
+            isMatch = queries.every(query => 
+                data[title].points.some(point => point.includes(query))
+            );
+            if (isMatch) {
+                partialMatchCount = queries.filter(query => 
+                    data[title].points.some(point => point.includes(query))
+                ).length;
+            }
+        } else {
+            // 部分匹配（或）：任一关键词包含在考点中即可
+            titleMatch = queries.some(query => titleLower.includes(query.toLowerCase()));
+            fileNameMatch = queries.some(query => fileNameLower.includes(query.toLowerCase()));
+            const topicMatch = queries.some(query => 
+                data[title].points.some(point => point.includes(query))
+            );
+            isMatch = topicMatch || titleMatch || fileNameMatch;
+            
+            if (isMatch) {
+                exactMatchCount = queries.filter(query => 
+                    data[title].points.includes(query)
+                ).length;
+                partialMatchCount = queries.filter(query => 
+                    data[title].points.some(point => point.includes(query) && !data[title].points.includes(query))
+                ).length;
+            }
+        }
+
+        titleExactMatch = queries.includes(title);
+        fileNameExactMatch = queries.includes(row.cells[3].textContent);
+
+        if (isMatch) {
+            matchedRows.push({
+                row: row,
+                title: title,
+                exactMatchCount: exactMatchCount,
+                partialMatchCount: partialMatchCount,
+                titleExactMatch: titleExactMatch,
+                fileNameExactMatch: fileNameExactMatch,
+                titleMatch: titleMatch,
+                fileNameMatch: fileNameMatch,
+                queries: queries
+            });
+        } else {
+            row.style.display = 'none';
+        }
+    });
+
+    // 对匹配的行进行排序
+    matchedRows.sort((a, b) => {
+        if (a.exactMatchCount !== b.exactMatchCount) return b.exactMatchCount - a.exactMatchCount;
+        if (a.partialMatchCount !== b.partialMatchCount) return b.partialMatchCount - a.partialMatchCount;
+        if (a.titleExactMatch !== b.titleExactMatch) return a.titleExactMatch ? -1 : 1;
+        if (a.fileNameExactMatch !== b.fileNameExactMatch) return a.fileNameExactMatch ? -1 : 1;
+        if (a.titleMatch !== b.titleMatch) return a.titleMatch ? -1 : 1;
+        if (a.fileNameMatch !== b.fileNameMatch) return a.fileNameMatch ? -1 : 1;
+        return 0;
+    });
+
+    // 重新显示排序后的行并更新序号
+    matchedRows.forEach((item, index) => {
+        const row = item.row;
+        row.style.display = '';
+        
+        // 更新序号
+        const numberSpan = row.querySelector('.index-checkbox span');
+        if (numberSpan) {
+            numberSpan.textContent = index + 1;
+        }
+
+        // 高亮显示匹配的内容
+        const originalPoints = data[item.title].points;
+        const searchRegex = new RegExp(item.queries.map(q => escapeRegExp(q)).join('|'), 'gi');
+        
+        const orderedMatchedPoints = [];
+        const addedPoints = new Set();
+
+        item.queries.forEach(query => {
+                    originalPoints.forEach(point => {
+                        const isMatchPoint = (searchMode === 'exact')
+                            ? (point === query)
+                            : point.toLowerCase().includes(query.toLowerCase());
+                        if (isMatchPoint && !addedPoints.has(point)) {
+                            orderedMatchedPoints.push(point);
+                            addedPoints.add(point);
+                        }
+                    });
+                });
+
+                const unmatchedPoints = originalPoints.filter(point => !addedPoints.has(point));
+                const reorderedPoints = [...orderedMatchedPoints, ...unmatchedPoints];
+
+                if (searchMode === 'exact') {
+                    const highlightedPoints = reorderedPoints.map(p =>
+                        item.queries.includes(p)
+                            ? `<strong style="color: red;">${p}</strong>`
+                            : p
+                    );
+                    row.cells[2].innerHTML = highlightedPoints.join('，');
+                } else {
+                    const reorderedKeyPointsString = reorderedPoints.join('，');
+                    const highlightedText = reorderedKeyPointsString.replace(searchRegex, match => `<strong style="color: red;">${match}</strong>`);
+                    row.cells[2].innerHTML = highlightedText;
+                }
+            });
+
+    updateRowCount();
+    reapplyRowColors();
+});
+
+clearBtn.addEventListener('click', function() {
+    searchInput.value = '';
+    searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+});
+
+const scrollToTopBtn = document.getElementById('scrollToTopBtn');
+
+window.onscroll = function() {
+    if (document.body.scrollTop > 100 || document.documentElement.scrollTop > 100) {
+        scrollToTopBtn.style.display = "block";
+    } else {
+        scrollToTopBtn.style.display = "none";
+    }
+};
+
+scrollToTopBtn.addEventListener('click', function() {
+    window.scrollTo({top: 0, behavior: 'smooth'});
+});
+
+// 复制行内容
+function copyRowContent(row) {
+    const title = row.dataset.title;
+    const filename = row.cells[3].textContent; // 文件名在第4列
+    
+    const obsidianLink = `![[${filename}#${title}|${title}]]`;
+    
+    // 复制到剪贴板
+    navigator.clipboard.writeText(obsidianLink).then(() => {
+        showCopyVisualFeedback(row);
+    }).catch(err => {
+        // 降级方案：使用传统方法复制
+        const textArea = document.createElement('textarea');
+        textArea.value = obsidianLink;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        showCopyVisualFeedback(row);
+    });
+}
+
+// 显示复制成功的视觉反馈
+function showCopyVisualFeedback(row) {
+    // 添加复制成功的样式
+    row.classList.add('row-copied');
+    
+    // 3秒后移除样式
+    setTimeout(() => {
+        row.classList.remove('row-copied');
+    }, 3000);
+}
+
+// 批量复制选中行
+function batchCopySelectedRows() {
+    if (selectedRows.size === 0) return;
+    
+    const selectedTitles = Array.from(selectedRows);
+    const copyContent = selectedTitles.map(title => {
+        // 找到对应的行数据
+        for (const filename in fileData) {
+            if (fileData[filename][title]) {
+                return `![[${filename}#${title}|${title}]]`;
+            }
+        }
+        return null;
+    }).filter(item => item !== null).join('\n\n');
+    
+    // 复制到剪贴板
+    navigator.clipboard.writeText(copyContent).then(() => {
+        showBatchCopyVisualFeedback();
+    }).catch(err => {
+        // 降级方案：使用传统方法复制
+        const textArea = document.createElement('textarea');
+        textArea.value = copyContent;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        showBatchCopyVisualFeedback();
+    });
+}
+
+// 显示批量复制成功的视觉反馈
+function showBatchCopyVisualFeedback() {
+    // 为所有选中的行添加复制成功样式
+    const selectedVisibleRows = Array.from(tableBody.querySelectorAll('tr')).filter(row => 
+        selectedRows.has(row.dataset.title)
+    );
+    
+    selectedVisibleRows.forEach(row => {
+        row.classList.add('row-copied');
+    });
+    
+    // 3秒后移除样式
+    setTimeout(() => {
+        selectedVisibleRows.forEach(row => {
+            row.classList.remove('row-copied');
+        });
+    }, 3000);
+}
+
+// 全选复选框事件监听
+selectAllCheckbox.addEventListener('change', function() {
+    toggleSelectAll();
+});
+
+// 批量复制按钮事件监听
+batchCopyBtn.addEventListener('click', function() {
+    batchCopySelectedRows();
+});
+
+// 生成图表颜色
+function generateColors(count) {
+    const colors = [
+        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+        '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0', '#FF6384',
+        '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'
+    ];
+    const result = [];
+    for (let i = 0; i < count; i++) {
+        result.push(colors[i % colors.length]);
+    }
+    return result;
+}
+
+// 获取图表配置
+function getChartConfig(labels, data, chartType) {
+    const colors = generateColors(labels.length);
+    const baseConfig = {
+        data: {
+            labels: labels,
+            datasets: [{
+                label: '计数',
+                data: data,
+                backgroundColor: colors.map(color => color + '80'), // 添加透明度
+                borderColor: colors,
+                borderWidth: 2
+            }]
+        },
+        options: {
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: chartType === 'pie' || chartType === 'doughnut',
+                    position: 'right',
+                    labels: {
+                        font: { size: 14 }
+                    }
+                },
+                title: {
+                    display: true,
+                    text: '考点分析图',
+                    font: { size: 24 }
+                },
+                datalabels: {
+                    display: chartType !== 'radar',
+                    anchor: chartType === 'bar' ? 'end' : 'center',
+                    align: chartType === 'bar' ? 'end' : 'center',
+                    formatter: (value) => value,
+                    font: { size: 14 },
+                    color: '#333'
+                }
+            },
+            hover: {
+                mode: 'nearest',
+                intersect: true,
+                animationDuration: 400
+            }
+        },
+        plugins: [ChartDataLabels]
+    };
+
+    // 根据图表类型调整配置
+    switch (chartType) {
+        case 'bar':
+            const maxValue = Math.max(...data);
+            const suggestedMax = Math.ceil(maxValue * 1.1); // 比最大值高10%，向上取整
+            baseConfig.options.scales = {
+                y: {
+                    beginAtZero: true,
+                    suggestedMax: suggestedMax,
+                    ticks: {
+                        font: { size: 14 },
+                        stepSize: 1,
+                        callback: function (value) {
+                            return Number.isInteger(value) ? value : null;
+                        }
+                    }
+                },
+                x: {
+                    ticks: { font: { size: 12 } }
+                }
+            };
+            break;
+        case 'line':
+            const lineMaxValue = Math.max(...data);
+            const lineSuggestedMax = Math.ceil(lineMaxValue * 1.1); // 比最大值高10%，向上取整
+            baseConfig.options.scales = {
+                y: {
+                    beginAtZero: true,
+                    suggestedMax: lineSuggestedMax,
+                    ticks: {
+                        font: { size: 14 },
+                        stepSize: 1
+                    }
+                },
+                x: {
+                    ticks: { font: { size: 12 } }
+                }
+            };
+            baseConfig.data.datasets[0].fill = false;
+            baseConfig.data.datasets[0].tension = 0.4;
+            break;
+        case 'radar':
+            baseConfig.options.scales = {
+                r: {
+                    beginAtZero: true,
+                    ticks: {
+                        font: { size: 12 },
+                        stepSize: 1
+                    }
+                }
+            };
+            baseConfig.data.datasets[0].fill = true;
+            baseConfig.data.datasets[0].backgroundColor = colors[0] + '40';
+            break;
+        case 'pie':
+        case 'doughnut':
+            baseConfig.options.plugins.datalabels.color = '#fff';
+            baseConfig.options.plugins.datalabels.font.weight = 'bold';
+            break;
+    }
+
+    return baseConfig;
+}
+
+// 图表相关函数
+function updateChart() {
+    const chartCanvas = document.getElementById('chart');
+    const sortedCounts = Object.entries(pointCounts).sort((a, b) => b[1] - a[1]);
+
+    // 如果没有数据，则不更新图表
+    if (sortedCounts.length === 0) {
+        if (chartInstance) {
+            chartInstance.destroy();
+            chartInstance = null;
+        }
+        document.getElementById('minRangeValue').textContent = '0';
+        document.getElementById('maxRangeValue').textContent = '0';
+        document.getElementById('minRange').value = 0;
+        document.getElementById('maxRange').value = 0;
+        document.getElementById('minRange').max = 0;
+        document.getElementById('maxRange').max = 0;
+        return;
+    }
+
+    const labels = sortedCounts.map(([point, count]) => point);
+    const data = sortedCounts.map(([point, count]) => count);
+
+    const maxDataValue = Math.max(...data, 1);
+    const minDataValue = Math.min(...data, 0);
+
+    // 动态计算初始最小值
+    const maxInitialBars = 50;
+    let initialMinCount = minDataValue;
+
+    if (sortedCounts.length > maxInitialBars) {
+        initialMinCount = sortedCounts[maxInitialBars - 1][1];
+    }
+    initialMinCount = Math.min(initialMinCount, maxDataValue);
+
+    // 更新滑动条的最大值和当前值
+    const minRangeInput = document.getElementById('minRange');
+    const maxRangeInput = document.getElementById('maxRange');
+
+    minRangeInput.max = maxDataValue;
+    maxRangeInput.max = maxDataValue;
+
+    minRangeInput.value = initialMinCount;
+    maxRangeInput.value = maxDataValue;
+
+    // 更新显示的数值
+    document.getElementById('minRangeValue').textContent = minRangeInput.value;
+    document.getElementById('maxRangeValue').textContent = maxRangeInput.value;
+
+    // 销毁现有的图表实例
+    if (chartInstance) {
+        chartInstance.destroy();
+    }
+
+    // 根据初始滑动条值过滤数据以供首次渲染
+    const initialFilteredData = sortedCounts
+        .filter(([point, count]) => count >= initialMinCount && count <= maxDataValue)
+        .sort((a, b) => b[1] - a[1]);
+
+    const initialLabels = initialFilteredData.map(([point, count]) => point);
+    const initialData = initialFilteredData.map(([point, count]) => count);
+
+    // 创建新的图表实例
+    const config = getChartConfig(initialLabels, initialData, currentChartType);
+    config.type = currentChartType;
+    chartInstance = new Chart(chartCanvas, config);
+
+    // 移除旧的事件监听器，避免重复添加
+    minRangeInput.removeEventListener('input', filterChart);
+    maxRangeInput.removeEventListener('input', filterChart);
+    // 添加滑动条事件监听
+    minRangeInput.addEventListener('input', filterChart);
+    maxRangeInput.addEventListener('input', filterChart);
+}
+
+function filterChart() {
+    const minRangeInput = document.getElementById('minRange');
+    const maxRangeInput = document.getElementById('maxRange');
+
+    let minRange = parseInt(minRangeInput.value, 10);
+    let maxRange = parseInt(maxRangeInput.value, 10);
+
+    // 确保最小值不大于最大值
+    if (minRange > maxRange) {
+        minRange = maxRange;
+        minRangeInput.value = minRange;
+    }
+
+    const filteredData = Object.entries(pointCounts)
+        .filter(([point, count]) => count >= minRange && count <= maxRange)
+        .sort((a, b) => b[1] - a[1]);
+
+    const labels = filteredData.map(([point, count]) => point);
+    const data = filteredData.map(([point, count]) => count);
+
+    if (chartInstance) {
+        chartInstance.data.labels = labels;
+        chartInstance.data.datasets[0].data = data;
+        chartInstance.update();
+    }
+
+    // 更新滑动条显示的数值
+    document.getElementById('minRangeValue').textContent = minRange;
+    document.getElementById('maxRangeValue').textContent = maxRange;
+}
+
+// 切换图表类型
+function switchChartType(type) {
+    currentChartType = type;
+    
+    // 更新按钮状态
+    document.querySelectorAll('.chart-type-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelector(`[data-type="${type}"]`).classList.add('active');
+    
+    // 重新生成图表
+    updateChart();
+}
+
+// 搜索模式切换函数
+function toggleSearchMode(mode) {
+    if (searchMode === mode) return;
+
+    if (searchMode && buttons[searchMode]) {
+        buttons[searchMode].classList.remove('selected');
+    }
+    searchMode = mode;
+    if (buttons[searchMode]) {
+        buttons[searchMode].classList.add('selected');
+    }
+    
+    // 重新执行搜索
+    const event = new Event('input', { bubbles: true });
+    searchInput.dispatchEvent(event);
+}
+
+// 事件监听器
+showChartButton.addEventListener('click', () => {
+    overlay.style.display = 'block';
+    chartContainer.style.display = 'block';
+    updateChart();
+});
+
+closeChart.addEventListener('click', () => {
+    overlay.style.display = 'none';
+    chartContainer.style.display = 'none';
+});
+
+// 添加右键关闭图表功能
+chartContainer.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    overlay.style.display = 'none';
+    chartContainer.style.display = 'none';
+});
+
+// 图表类型切换事件监听
+document.querySelectorAll('.chart-type-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const type = btn.dataset.type;
+        switchChartType(type);
+    });
+});
+
+// 主题切换功能
+function toggleTheme() {
+    isDarkMode = !isDarkMode;
+    const body = document.body;
+    
+    if (isDarkMode) {
+        body.classList.add('dark-mode');
+        themeToggleBtn.textContent = '☀️ 浅色模式';
+        localStorage.setItem('theme', 'dark');
+    } else {
+        body.classList.remove('dark-mode');
+        themeToggleBtn.textContent = '🌙 深色模式';
+        localStorage.setItem('theme', 'light');
+    }
+}
+
+// 初始化主题
+function initTheme() {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark') {
+        isDarkMode = true;
+        document.body.classList.add('dark-mode');
+        themeToggleBtn.textContent = '☀️ 浅色模式';
+    }
+}
+
+// 初始化按钮和搜索模式
+document.addEventListener('DOMContentLoaded', () => {
+    buttons = {
+        partialOr: document.getElementById('partialOrMatchButton'),
+        partialAnd: document.getElementById('partialAndMatchButton'),
+        exact: document.getElementById('exactMatchButton')
+    };
+
+    // 设置默认模式
+    buttons.partialOr.classList.add('selected');
+    
+    // 初始化主题
+    initTheme();
+});
+
+// 生成统计面板内容
+function generateStatsContent() {
+    const totalQuestions = Object.keys(data).length;
+    const totalFiles = activeFiles.size;
+    
+    // 计算各种统计
+    const totalPoints = Object.values(pointCounts).reduce((sum, count) => sum + count, 0);
+    const totalDifficulties = Object.values(difficultyCounts).reduce((sum, count) => sum + count, 0);
+    const totalTypes = Object.values(typeCounts).reduce((sum, count) => sum + count, 0);
+    const totalSubjects = Object.values(subjectCounts).reduce((sum, count) => sum + count, 0);
+    
+    let statsHTML = `
+        <div class="stats-section">
+            <h3>📈 总体统计</h3>
+            <div class="stats-grid">
+                <div class="stats-card">
+                    <div class="number">${totalQuestions}</div>
+                    <div class="label">总题目数</div>
+                </div>
+                <div class="stats-card">
+                    <div class="number">${totalFiles}</div>
+                    <div class="label">激活文件数</div>
+                </div>
+                <div class="stats-card">
+                    <div class="number">${Object.keys(pointCounts).length}</div>
+                    <div class="label">考点种类</div>
+                </div>
+                <div class="stats-card">
+                    <div class="number">${totalPoints}</div>
+                    <div class="label">考点总数</div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // 难度分布
+    if (Object.keys(difficultyCounts).length > 0) {
+        const difficultyOrder = ['难度超低', '难度低', '难度中低', '难度中等', '难度中高', '难度高', '难度超高'];
+        const sortedDifficulties = difficultyOrder.filter(d => difficultyCounts[d]).map(d => ({
+            name: d,
+            count: difficultyCounts[d]
+        }));
+        
+        statsHTML += `
+            <div class="stats-section">
+                <h3>📊 难度分布</h3>
+                <div class="stats-list">
+                    ${sortedDifficulties.map(item => `
+                        <div class="stats-item">
+                            <span class="name">${item.name}</span>
+                            <span class="count">${item.count}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+    
+    // 题型分布
+    if (Object.keys(typeCounts).length > 0) {
+        const typeOrder = ['选择', '填空', '解答'];
+        const sortedTypes = typeOrder.filter(t => typeCounts[t]).map(t => ({
+            name: t,
+            count: typeCounts[t]
+        }));
+        
+        statsHTML += `
+            <div class="stats-section">
+                <h3>📝 题型分布</h3>
+                <div class="stats-list">
+                    ${sortedTypes.map(item => `
+                        <div class="stats-item">
+                            <span class="name">${item.name}</span>
+                            <span class="count">${item.count}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+    
+    // 科目分布
+    if (Object.keys(subjectCounts).length > 0) {
+        const subjectOrder = ['高数', '线代', '概论'];
+        const sortedSubjects = subjectOrder.filter(s => subjectCounts[s]).map(s => ({
+            name: s,
+            count: subjectCounts[s]
+        }));
+        
+        statsHTML += `
+            <div class="stats-section">
+                <h3>📚 科目分布</h3>
+                <div class="stats-list">
+                    ${sortedSubjects.map(item => `
+                        <div class="stats-item">
+                            <span class="name">${item.name}</span>
+                            <span class="count">${item.count}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+    
+    // 考点分布（前20个）
+    if (Object.keys(pointCounts).length > 0) {
+        const sortedPoints = Object.entries(pointCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 20);
+        
+        statsHTML += `
+            <div class="stats-section">
+                <h3>🎯 考点分布 (前20个)</h3>
+                <div class="stats-list">
+                    ${sortedPoints.map(([point, count]) => `
+                        <div class="stats-item">
+                            <span class="name">${point}</span>
+                            <span class="count">${count}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+    
+    // 文件分布
+    const fileStats = {};
+    for (const filename of activeFiles) {
+        if (fileData[filename]) {
+            fileStats[filename] = Object.keys(fileData[filename]).length;
+        }
+    }
+    
+    if (Object.keys(fileStats).length > 0) {
+        const sortedFiles = Object.entries(fileStats)
+            .sort((a, b) => b[1] - a[1]);
+        
+        statsHTML += `
+            <div class="stats-section">
+                <h3>📁 文件分布</h3>
+                <div class="stats-list">
+                    ${sortedFiles.map(([filename, count]) => `
+                        <div class="stats-item">
+                            <span class="name">${filename}</span>
+                            <span class="count">${count}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+    
+    statsContent.innerHTML = statsHTML;
+}
+
+// 显示统计面板
+function showStatsPanel() {
+    generateStatsContent();
+    overlay.style.display = 'block';
+    statsContainer.style.display = 'block';
+}
+
+// 隐藏统计面板
+function hideStatsPanel() {
+    overlay.style.display = 'none';
+    statsContainer.style.display = 'none';
+}
+
+// 主题切换按钮事件监听
+themeToggleBtn.addEventListener('click', toggleTheme);
+
+// 计算题目相似度
+function calculateSimilarity(sourcePoints, subQuestionPoints) {
+    if (!sourcePoints || !subQuestionPoints || sourcePoints.length === 0 || subQuestionPoints.length === 0) {
+        return 0;
+    }
+    
+    // 将考点转换为Set以便计算交集
+    const sourceSet = new Set(sourcePoints);
+    const subQuestionSet = new Set(subQuestionPoints);
+    
+    // 计算交集大小（共同考点数）
+    const intersection = new Set([...sourceSet].filter(x => subQuestionSet.has(x)));
+    const commonPointsCount = intersection.size;
+    
+    // 源题目中的考点数
+    const sourcePointsCount = sourcePoints.length;
+    
+    // 新的相似度计算方式：(子题目中与源题目中相同的考点数 / 源题目中的考点数) * 100%
+    return sourcePointsCount > 0 ? commonPointsCount / sourcePointsCount : 0;
+}
+
+// 生成相似题目推荐
+function generateRecommendations() {
+    if (Object.keys(data).length === 0) {
+        recommendContent.innerHTML = '<div class="no-recommendations">暂无数据，请先加载题目</div>';
+        return;
+    }
+
+    const recommendations = [];
+    const titles = Object.keys(data);
+
+    // 为每个题目计算相似度
+    for (let i = 0; i < titles.length; i++) {
+        const currentTitle = titles[i];
+        const currentPoints = data[currentTitle].points;
+        const currentSimilarities = [];
+
+        // 与其他题目比较
+        for (let j = 0; j < titles.length; j++) {
+            if (i !== j) {
+                const otherTitle = titles[j];
+                const otherPoints = data[otherTitle].points;
+                const similarity = calculateSimilarity(currentPoints, otherPoints);
+                
+                if (similarity > 0) {
+                    currentSimilarities.push({
+                        title: otherTitle,
+                        points: otherPoints,
+                        filename: data[otherTitle].filename,
+                        similarity: similarity
+                    });
+                }
+            }
+        }
+
+        // 按相似度排序，只保留相似度超过49%的题目
+        currentSimilarities.sort((a, b) => b.similarity - a.similarity);
+        const topSimilar = currentSimilarities
+            .filter(item => item.similarity > 0.49)
+            .slice(0, 5);
+
+        if (topSimilar.length > 0) {
+            recommendations.push({
+                sourceTitle: currentTitle,
+                sourcePoints: currentPoints,
+                sourceFilename: data[currentTitle].filename,
+                similarItems: topSimilar
+            });
+        }
+    }
+
+    // 生成推荐内容HTML
+    let recommendHTML = '<h2 style="text-align: center; margin-bottom: 30px; color: #333;">🎯 相似题目推荐</h2>';
+    recommendHTML += '<div style="text-align: center; margin-bottom: 20px; color: #666; font-size: 14px;">💡 <span class="similarity-point">加粗考点</span> 表示与源题目相同的考点（相似依据）</div>';
+    
+    if (recommendations.length === 0) {
+        recommendHTML += '<div class="no-recommendations">未找到相似题目</div>';
+    } else {
+        recommendations.forEach((rec, index) => {
+            // 为源题目找出所有相似题目的共同考点
+            const allCommonPoints = new Set();
+            rec.similarItems.forEach(item => {
+                const sourceSet = new Set(rec.sourcePoints);
+                const itemSet = new Set(item.points);
+                const commonPoints = [...sourceSet].filter(point => itemSet.has(point));
+                commonPoints.forEach(point => allCommonPoints.add(point));
+            });
+            
+            // 格式化源题目考点显示，共同考点加粗
+            const formattedSourcePoints = rec.sourcePoints.map(point => {
+                if (allCommonPoints.has(point)) {
+                    return `<span class="similarity-point">${point}</span>`;
+                }
+                return point;
+            }).join('，');
+            
+            // 定义背景颜色数组，循环使用
+            const backgroundColors = ['#fff5f5', '#f0f8ff', '#fff8f0', '#f0fff0'];
+            const backgroundColor = backgroundColors[index % backgroundColors.length];
+            
+            recommendHTML += `
+                <div class="recommend-section" style="background-color: ${backgroundColor};">
+                    <button class="section-batch-copy" onclick="batchCopySection(this)" title="复制本题所有相似题目">批量复制</button>
+                    <h3>📖 ${rec.sourceTitle}</h3>
+                    <div style="margin-bottom: 15px; color: #666; font-size: 14px;">
+                        <strong>考点：</strong>${formattedSourcePoints}
+                    </div>
+                    <div style="margin-bottom: 10px; color: #999; font-size: 12px;">
+                        <strong>来源：</strong>${rec.sourceFilename}
+                    </div>
+                    <h4 style="margin: 15px 0 10px 0; color: #9C27B0;">相似题目：</h4>
+            `;
+
+            rec.similarItems.forEach((item, itemIndex) => {
+                const similarityPercent = Math.round(item.similarity * 100);
+                
+                // 找出共同考点（相似依据）
+                const sourceSet = new Set(rec.sourcePoints);
+                const itemSet = new Set(item.points);
+                const commonPoints = [...sourceSet].filter(point => itemSet.has(point));
+                
+                // 格式化考点显示，共同考点加粗
+                const formattedPoints = item.points.map(point => {
+                    if (commonPoints.includes(point)) {
+                        return `<span class="similarity-point">${point}</span>`;
+                    }
+                    return point;
+                }).join('，');
+                
+                recommendHTML += `
+                    <div class="recommend-item" 
+                         data-title="${item.title.replace(/"/g, '&quot;')}" 
+                         data-filename="${item.filename.replace(/"/g, '&quot;')}" 
+                         onclick="copyToClipboard('${item.title}', '${item.filename}', this)"
+                         oncontextmenu="copyToClipboard('${item.title}', '${item.filename}', this); return false;">
+                        <span class="item-number">${itemIndex + 1}</span>
+                        <span class="similarity">${similarityPercent}%</span>
+                        <div class="title">${item.title}</div>
+                        <div class="points">${formattedPoints}</div>
+                        <div class="filename">${item.filename}</div>
+                    </div>
+                `;
+            });
+
+            recommendHTML += '</div>';
+        });
+    }
+
+    recommendContent.innerHTML = recommendHTML;
+}
+
+// 复制题目到剪贴板
+function copyToClipboard(title, filename, element = null) {
+    const obsidianLink = `![[${filename}#${title}|${title}]]`;
+    
+    navigator.clipboard.writeText(obsidianLink).then(() => {
+        // 显示复制成功提示
+        const copySuccess = document.getElementById('copySuccess');
+        copySuccess.style.display = 'block';
+        setTimeout(() => {
+            copySuccess.style.display = 'none';
+        }, 2000);
+        
+        // 如果提供了元素，添加复制成功的视觉反馈
+        if (element) {
+            element.classList.add('item-copied');
+            setTimeout(() => {
+                element.classList.remove('item-copied');
+            }, 3000);
+        }
+    }).catch(err => {
+        // 降级方案
+        const textArea = document.createElement('textarea');
+        textArea.value = obsidianLink;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        
+        const copySuccess = document.getElementById('copySuccess');
+        copySuccess.style.display = 'block';
+        setTimeout(() => {
+            copySuccess.style.display = 'none';
+        }, 2000);
+        
+        // 如果提供了元素，添加复制成功的视觉反馈
+        if (element) {
+            element.classList.add('item-copied');
+            setTimeout(() => {
+                element.classList.remove('item-copied');
+            }, 3000);
+        }
+    });
+}
+
+// 批量复制某个题目容器中的所有相似题目
+function batchCopySection(buttonElement) {
+    const sectionElement = buttonElement.closest('.recommend-section');
+    if (!sectionElement) return;
+
+    const itemElements = Array.from(sectionElement.querySelectorAll('.recommend-item'));
+    if (itemElements.length === 0) return;
+
+    // 组装需要复制的文本（中间空一行）
+    const links = itemElements.map(itemEl => {
+        const title = itemEl.getAttribute('data-title') || (itemEl.querySelector('.title')?.textContent || '').trim();
+        const filename = itemEl.getAttribute('data-filename') || (itemEl.querySelector('.filename')?.textContent || '').trim();
+        return `![[${filename}#${title}|${title}]]`;
+    });
+    const textToCopy = links.join('\n\n');
+
+    // 执行复制并提供视觉反馈
+    const showToast = () => {
+        const copySuccess = document.getElementById('copySuccess');
+        copySuccess.style.display = 'block';
+        setTimeout(() => {
+            copySuccess.style.display = 'none';
+        }, 2000);
+    };
+
+    const addVisualFeedback = () => {
+        itemElements.forEach(el => {
+            el.classList.add('item-copied');
+        });
+        setTimeout(() => {
+            itemElements.forEach(el => el.classList.remove('item-copied'));
+        }, 3000);
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            showToast();
+            addVisualFeedback();
+        }).catch(() => {
+            // 降级方案
+            const textArea = document.createElement('textarea');
+            textArea.value = textToCopy;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            showToast();
+            addVisualFeedback();
+        });
+    } else {
+        // 降级方案
+        const textArea = document.createElement('textarea');
+        textArea.value = textToCopy;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        showToast();
+        addVisualFeedback();
+    }
+}
+
+// 显示推荐面板
+function showRecommendPanel() {
+    generateRecommendations();
+    overlay.style.display = 'block';
+    recommendContainer.style.display = 'block';
+}
+
+// 隐藏推荐面板
+function hideRecommendPanel() {
+    overlay.style.display = 'none';
+    recommendContainer.style.display = 'none';
+}
+
+// 统计面板事件监听
+showStatsButton.addEventListener('click', showStatsPanel);
+closeStats.addEventListener('click', hideStatsPanel);
+
+// 添加右键关闭统计面板功能
+statsContainer.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    hideStatsPanel();
+});
+
+// 推荐面板事件监听
+showRecommendButton.addEventListener('click', showRecommendPanel);
+closeRecommend.addEventListener('click', hideRecommendPanel);
+
+// 移除右键关闭推荐面板功能，改为复制功能
+
+// 初始化
+updateRowCount();
+updateFileInfo();
+updateBatchCopyButton();
+    </script>
+
+</body>
+
+</html>
+<!-- 我来分析这个HTML文件的功能、使用方法和应用场景。
+
+Read file: 解析为表格-24-题目推荐.html
+Read file: 解析为表格-24-题目推荐.html
+Read file: 解析为表格-24-题目推荐.html
+Read file: 解析为表格-24-题目推荐.html
+基于对代码的详细分析，我来为您全面解析这个HTML文件的功能、使用方法和应用场景：
+
+## 功能分析
+
+### 核心功能
+这是一个**高级版Markdown文件解析和智能推荐工具**，在基础版本的基础上增加了**智能题目推荐系统**和**多维度统计分析**功能：
+
+1. **Markdown文件解析**
+   - 解析包含四级标题（`####`）和考点信息的Markdown文件
+   - 提取题目名称和对应的考点列表
+   - 支持多文件同时处理
+
+2. **智能题目推荐系统**
+   - 基于考点相似度计算题目间的关联关系
+   - 为每个题目推荐相似度超过50%的相关题目
+   - 可视化显示相似依据（共同考点高亮）
+
+3. **多维度统计分析**
+   - 总体统计：题目数、文件数、考点种类等
+   - 难度分布：按难度等级统计题目分布
+   - 题型分布：选择题、填空题、解答题统计
+   - 科目分布：高数、线代、概论等科目统计
+   - 考点分布：前20个高频考点统计
+   - 文件分布：各文件题目数量统计
+
+4. **增强的数据可视化**
+   - 支持5种图表类型：条形图、饼图、环形图、折线图、雷达图
+   - 动态范围筛选（滑动条控制）
+   - 图表数据标签显示
+
+5. **深色模式支持**
+   - 完整的深色主题切换功能
+   - 主题偏好本地存储
+
+6. **三种搜索模式**
+   - 部分匹配（或）：任一关键词匹配即可
+   - 部分匹配（且）：所有关键词都必须匹配
+   - 精确匹配（且）：所有关键词都必须完全匹配
+
+7. **数据管理功能**
+   - 拖拽上传多个Markdown文件
+   - 文件标签管理（激活/停用/移除）
+   - 批量选择和复制功能
+
+## 使用方法
+
+### 1. 文件上传
+```
+将Markdown文件拖拽到页面顶部的虚线框中
+支持同时拖拽多个.md文件
+```
+
+### 2. 智能题目推荐
+```
+点击左下角"�� 相似题目"按钮
+系统会自动分析所有题目的考点相似度
+为每个题目推荐相似度超过50%的相关题目
+点击推荐题目可复制Obsidian链接
+```
+
+### 3. 统计分析
+```
+点击左上角"📊 统计面板"按钮
+查看多维度统计数据：
+- 总体统计：题目总数、文件数等
+- 难度分布：各难度等级题目数量
+- 题型分布：选择题、填空题等分布
+- 科目分布：高数、线代等科目分布
+- 考点分布：前20个高频考点
+- 文件分布：各文件题目数量
+```
+
+### 4. 数据可视化
+```
+点击左下角"�� 数据图表"按钮
+选择图表类型：条形图、饼图、环形图、折线图、雷达图
+使用滑动条调整显示范围
+```
+
+### 5. 主题切换
+```
+点击右上角"🌙 深色模式"按钮
+在浅色和深色主题间切换
+主题偏好会自动保存
+```
+
+### 6. 搜索和筛选
+```
+在搜索框中输入关键词，用逗号分隔
+选择搜索模式：部分匹配（或/且）、精确匹配
+搜索结果会按相关度排序
+```
+
+### 7. 数据复制
+```
+- 右键点击行复制单行数据
+- 使用右上角"批量复制"按钮复制选中数据
+- 在推荐面板中点击题目复制单个推荐
+- 使用推荐面板中的"批量复制"按钮复制某题目的所有相似题目
+```
+
+## 智能推荐算法详解
+
+### 相似度计算公式
+```
+相似度 = (共同考点数 / 源题目考点数) × 100%
+```
+
+### 推荐规则
+1. **相似度阈值**：只推荐相似度超过50%的题目
+2. **推荐数量**：每个题目最多推荐5个相似题目
+3. **排序方式**：按相似度从高到低排序
+4. **相似依据**：高亮显示共同考点作为推荐依据
+
+### 推荐展示
+- **源题目**：显示题目名称、考点、来源文件
+- **相似题目**：显示题目名称、考点、相似度百分比
+- **相似依据**：用特殊颜色高亮显示共同考点
+- **批量操作**：支持复制某个题目的所有相似题目
+
+## 应用场景
+
+### 1. 教育领域
+- **智能题库推荐**：根据学生当前学习内容推荐相关题目
+- **知识点关联分析**：发现不同考点之间的联系和依赖关系
+- **个性化学习路径**：基于相似度构建个性化学习序列
+- **教学资源优化**：避免重复内容，提高资源利用效率
+
+### 2. 考试准备
+- **重点突破**：通过相似题目发现知识薄弱环节
+- **复习策略制定**：基于相似度制定系统化复习计划
+- **查漏补缺**：确保所有相关知识点都有覆盖
+- **效率提升**：避免重复练习相同类型的题目
+
+### 3. 内容管理
+- **知识图谱构建**：通过相似度关系构建知识网络
+- **内容去重**：识别和合并相似内容
+- **质量评估**：分析题目覆盖的全面性和关联性
+- **资源整合**：优化题库结构和组织方式
+
+### 4. 研究分析
+- **模式识别**：发现题目设计中的模式和规律
+- **关联挖掘**：分析知识点之间的隐含关系
+- **趋势分析**：研究考点组合的变化趋势
+- **对比研究**：比较不同题库的内容差异
+
+### 5. 团队协作
+- **分工优化**：根据相似度合理分配工作内容
+- **标准统一**：确保相似题目的质量标准一致
+- **资源共享**：智能推荐相关学习资源
+- **进度跟踪**：基于相似度跟踪学习进度
+
+### 6. 自适应学习
+- **智能推荐**：根据学习进度推荐下一阶段内容
+- **难度递进**：基于相似度构建难度递进序列
+- **个性化路径**：为不同学习者定制学习路径
+- **学习效果评估**：通过相似题目测试学习效果
+
+## 技术特点
+
+1. **智能算法**：基于考点相似度的智能推荐算法
+2. **多维度分析**：全面的统计分析和数据可视化
+3. **用户体验**：深色模式、响应式设计、直观操作
+4. **高效处理**：支持大量题目的快速分析和推荐
+5. **数据安全**：纯前端实现，数据不离开本地
+
+这个工具特别适合需要智能推荐、深度分析和个性化学习支持的教育工作者、学生和研究人员，通过智能推荐系统可以显著提高学习效率和资源利用效果。 -->
